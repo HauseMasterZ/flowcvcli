@@ -116,6 +116,15 @@ flowcv share | publish | unpublish
 # backup / restore
 flowcv export -o backup.json          # full resume snapshot (JSON) — keep one before big edits
 flowcv import backup.json             # restore the snapshot into a NEW resume (non-destructive)
+
+# cover letters (same session; letter bodies are <p> HTML under the hood)
+flowcv letters                         # list letters (id, title)
+flowcv letter-new "Cover Letter"     # new letter (clones structure) -> prints id
+flowcv letter-duplicate --letter-id <id> --title "Copy"   # full copy (get + create)
+flowcv letter-body --letter-id <id> --file cover.md       # plain paragraphs -> <p> HTML (--text also works)
+flowcv letter-title --letter-id <id> "New Title"
+flowcv letter-download --letter-id <id> -o cover.pdf      # the rendered PDF
+flowcv letter-delete --letter-id <id> --yes               # permanent (JSON backup saved first; refuses without --yes)
 flowcv export --format jsonresume -o me.json   # export to the jsonresume.org schema
 flowcv import --format jsonresume me.json      # build a NEW resume from a JSON Resume doc
 flowcv backups                        # list auto-snapshots (rm-section / delete-resume snapshot first; --no-backup opts out)
@@ -169,6 +178,14 @@ fc.set_date("publication", "id", year=2018)         # structured date; merges (o
 import json
 json.dump(fc.export_resume(), open("backup.json", "w"))   # full snapshot
 new_id = fc.import_resume(json.load(open("backup.json")))  # restore into a NEW resume
+
+# cover letters
+lid = fc.create_letter("Cover Letter")          # or fc.duplicate_letter(letter_id)
+fc.set_letter_body_text(lid, "Hi,\n\nParagraph two.")  # plain text -> <p> HTML
+fc.save_letter_title(lid, "Job Title")
+fc.save_letter_pdf(lid, "cover.pdf")              # render to PDF
+fc.backup_letter(lid)                             # JSON snapshot (auto before delete)
+fc.delete_letter(lid)                             # permanent
 
 # JSON Resume interop (jsonresume.org schema)
 from flowcvcli import to_jsonresume, from_jsonresume

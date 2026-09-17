@@ -551,6 +551,61 @@ def cmd_backups(a):
     _emit(backups, human)
 
 
+# ---- cover letters ------------------------------------------------------
+def _letter_id(a):
+    lid = getattr(a, "letter_id", "")
+    if not lid:
+        sys.exit("pass --letter-id <id> (see `flowcv letters`).")
+    return lid
+
+
+def cmd_letters(a):
+    letters = _fc(a).list_letters()
+
+    def human():
+        for L in letters:
+            print(f"  {L.get('id','(no id)')}  {(L.get('title') or '(untitled)'):40}  "
+                  f"{L.get('updatedAt','-')}")
+    _emit([{"id": L.get("id"), "title": L.get("title"),
+            "updatedAt": L.get("updatedAt")} for L in letters], human)
+
+
+def cmd_letter_new(a):
+    new_id = _fc(a).create_letter(a.title)
+    _emit({"id": new_id, "success": True}, lambda: print(f"created new letter -> {new_id}"))
+
+
+def cmd_letter_duplicate(a):
+    new_id = _fc(a).duplicate_letter(_letter_id(a), a.title or None)
+    _emit({"id": new_id, "success": True}, lambda: print(f"duplicated letter -> {new_id}"))
+
+
+def cmd_letter_title(a):
+    _result(_fc(a).save_letter_title(_letter_id(a), a.title), f"rename letter -> {a.title!r}")
+
+
+def cmd_letter_body(a):
+    _result(_fc(a).set_letter_body_text(_letter_id(a), _read(a.file, a.text)),
+            f"saved body -> letter {_letter_id(a)[:8]}")
+
+
+def cmd_letter_delete(a):
+    fc = _fc(a)
+    lid = _letter_id(a)
+    if not a.yes:
+        sys.exit(f"refusing to delete letter {lid} without --yes (this is permanent).")
+    path = fc.backup_letter(lid)       # aborts the delete if the backup fails (raises)
+    _result(fc.delete_letter(lid), f"delete letter {lid[:8]} (backup: {path})")
+
+
+def cmd_letter_download(a):
+    fc = _fc(a)
+    out = a.output or "letter.pdf"
+    fc.save_letter_pdf(_letter_id(a), out)
+    n = os.path.getsize(out)
+    _emit({"saved": out, "bytes": n}, lambda: print(f"saved {out} ({n} bytes)"))
+
+
 # ---- doctor: first-run / auth diagnostics --------------------------------
 def _curl_cffi_available():
     """True if curl_cffi imports — only credential (email/password) login needs it."""
@@ -786,6 +841,23 @@ def build_parser():
             "`flowcv import <file>`.")
     s.add_argument("--all", action="store_true", help="list snapshots for all resumes, not just the current one")
     s.set_defaults(fn=cmd_backups)
+
+    add("letters", description="List cover letters (id, title).").set_defaults(fn=cmd_letters)
+    s = add("letter-new"); s.add_argument("title"); s.set_defaults(fn=cmd_letter_new)
+    s = add("letter-duplicate"); s.add_argument("--letter-id", required=True)
+    s.add_argument("--title", default="", help="title for the copy (default: server default)")
+    s.set_defaults(fn=cmd_letter_duplicate)
+    s = add("letter-title"); s.add_argument("--letter-id", required=True); s.add_argument("title")
+    s.set_defaults(fn=cmd_letter_title)
+    s = add("letter-body"); s.add_argument("--letter-id", required=True)
+    g = s.add_mutually_exclusive_group(required=True); g.add_argument("--file"); g.add_argument("--text")
+    s.set_defaults(fn=cmd_letter_body)
+    s = add("letter-delete"); s.add_argument("--letter-id", required=True)
+    s.add_argument("--yes", action="store_true", help="confirm permanent deletion (a JSON backup is saved first)")
+    s.set_defaults(fn=cmd_letter_delete)
+    s = add("letter-download"); s.add_argument("--letter-id", required=True)
+    s.add_argument("-o", "--output", default="letter.pdf")
+    s.set_defaults(fn=cmd_letter_download)
 
     s = add("doctor", description="Diagnose auth and first-run setup: dotenv files, "
             "auth source, session file perms/age, curl_cffi, and a live API check.")

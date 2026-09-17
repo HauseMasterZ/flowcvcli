@@ -15,13 +15,14 @@ LLM / library use:
 from .client import Client
 from .content import ContentMixin
 from .customization import CustomizationMixin
+from .letters import LetterMixin, letter_text_to_html
 from .personal import PersonalMixin
 from .photo import PhotoMixin
 from .resume import ResumeMixin
 
 
 class FlowCV(Client, ResumeMixin, ContentMixin, PersonalMixin,
-             CustomizationMixin, PhotoMixin):
+             CustomizationMixin, PhotoMixin, LetterMixin):
     """One object that controls a FlowCV resume end to end."""
 
     # convenience: toggle the header photo/avatar on or off (a customization delta)
